@@ -1,4 +1,4 @@
-name: DevSecOps CI/CD Pipeline
+name: SafeDeploy DevSecOps CI/CD
 
 on:
   push:
@@ -11,11 +11,12 @@ env:
   STAGING_URL: https://staging.example.com
 
 jobs:
+
   ################################
-  # 1. SCA - Dependency Check
+  # Pre-Build Stage
   ################################
-  sca:
-    name: SCA - Snyk
+  prebuild:
+    name: Pre-Build Security Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,51 +24,38 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Snyk Scan
+      - name: SCA - Snyk
         uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           args: test --severity-threshold=high
 
-  ################################
-  # 2. SBOM Generation
-  ################################
-  sbom:
-    name: Generate SBOM
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Generate SBOM
+      - name: SBOM - CycloneDX
         run: |
           npm install -g @cyclonedx/bom
           cyclonedx-bom -o bom.xml
 
-  ################################
-  # 3. SAST - CodeQL
-  ################################
-  sast:
-    name: SAST - CodeQL
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - name: SAST - CodeQL Init
+        uses: github/codeql-action/init@v3
         with:
           languages: ['javascript']
-      - uses: github/codeql-action/analyze@v3
+
+      - name: SAST - CodeQL Analyze
+        uses: github/codeql-action/analyze@v3
+
+      - name: IaC Scan - Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
 
   ################################
-  # 4. Build Docker Image
+  # Build Stage
   ################################
   build:
-    name: Build & Push Docker
+    name: Build Container Image
     runs-on: ubuntu-latest
-    needs: [sca, sast, sbom]
+    needs: prebuild
     steps:
       - uses: actions/checkout@v4
 
@@ -85,52 +73,28 @@ jobs:
         run: docker push $IMAGE_NAME
 
   ################################
-  # 5. Unit + Coverage + Integration Test
+  # Test Stage
   ################################
   test:
-    name: Testing
+    name: Test & Scan
     runs-on: ubuntu-latest
+    needs: build
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Unit Tests
+      - name: Unit Tests
         run: npm test
 
-      - name: Code Coverage Check
+      - name: Code Coverage
         run: npm run coverage
 
       - name: Integration Tests
         run: npm run integration
 
-  ################################
-  # 6. IaC Scan - Checkov
-  ################################
-  iac:
-    name: IaC Scan - Checkov
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run Checkov
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: .
-        continue-on-error: false
-
-  ################################
-  # 7. Image Scan - Trivy
-  ################################
-  trivy:
-    name: Scan Container - Trivy
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run Trivy
+      - name: Image Scan - Trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_NAME }}
@@ -138,52 +102,35 @@ jobs:
           format: 'table'
           severity: 'HIGH,CRITICAL'
 
-  ################################
-  # 8. DAST - Checkmarx or ZAP
-  ################################
-  dast:
-    name: DAST - ZAP Baseline
-    runs-on: ubuntu-latest
-    needs: [test, trivy]
-    steps:
-      - name: OWASP ZAP Scan
+      - name: DAST - OWASP ZAP
         uses: zaproxy/action-baseline@v0.10.0
         with:
           target: ${{ env.STAGING_URL }}
-        continue-on-error: false
 
   ################################
-  # 9. GitOps (Optional)
+  # Release Stage
   ################################
-  gitops:
-    name: GitOps Trigger
+  release:
+    name: Release and Notify
     runs-on: ubuntu-latest
-    if: success()
+    needs: test
     steps:
-      - name: Update GitOps Repo (Placeholder)
-        run: echo "Trigger ArgoCD / FluxCD sync here."
+      - name: GitOps Trigger (Placeholder)
+        run: echo "Trigger ArgoCD/FluxCD here"
 
-  ################################
-  # 10. Notify on Failure
-  ################################
-  notify:
-    name: Notify
-    runs-on: ubuntu-latest
-    if: failure()
-    steps:
-      - name: Slack Notification
+      - name: Notify Slack
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
             {
-              "text": "🚨 DevSecOps pipeline failed for ${{ github.repository }} on `${{ github.ref_name }}`"
+              "text": "✅ Deployment pipeline successful for `${{ github.repository }}` on `${{ github.ref_name }}`"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-      - name: Discord Notification (optional)
+      - name: Notify Discord
         run: |
           curl -H "Content-Type: application/json" \
                -X POST \
-               -d '{"content": "🚨 DevSecOps pipeline failed!"}' \
+               -d '{"content": "✅ Deployment pipeline successful!"}' \
                ${{ secrets.DISCORD_WEBHOOK }}
