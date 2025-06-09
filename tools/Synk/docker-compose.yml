@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  snyk:
+    image: snyk/snyk:latest
+    container_name: snyk
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - SNYK_TOKEN=yourtokenhere
+    entrypoint: [ "tail", "-f", "/dev/null" ] 
+
