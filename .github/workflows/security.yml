@@ -55,9 +55,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: snyk-json
-          path: snyk-results.json
+          path: apps/simple-flask/snyk-results.json
 
       - name: 📤 Logging snyk results
         run: |
           echo "Snyk results:"
-          cat snyk-results.json
+          cat apps/simple-flask/snyk-results.json
