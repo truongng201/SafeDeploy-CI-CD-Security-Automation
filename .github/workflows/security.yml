@@ -42,15 +42,15 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: test apps/simple-flask/requirements.txt --json-file-output=snyk-results.json
+          args: --json-file-output=snyk-results.json
 
       - name: 💾 Upload Snyk JSON results (for DefectDojo or review)
         uses: actions/upload-artifact@v4
         with:
           name: snyk-json
-          path: apps/simple-flask/snyk-results.json
+          path: snyk-results.json
 
       - name: 📤 Logging snyk results
         run: |
           echo "Snyk results:"
-          cat apps/simple-flask/snyk-results.json
+          cat snyk-results.json
