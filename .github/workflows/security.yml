@@ -36,6 +36,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 📦 Jump to python app
+        run: |
+          cd apps/simple-flask
+          echo "Current directory: $(pwd)"
+          echo "Contents of the directory:"
+          ls -la
+
       - name: 🔍 Run Snyk to check for vulnerabilities
         uses: snyk/actions/python@master
         continue-on-error: true
