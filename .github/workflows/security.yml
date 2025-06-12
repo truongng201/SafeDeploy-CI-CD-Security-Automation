@@ -55,11 +55,12 @@ jobs:
           echo "Snyk results:"
           cat snyk-results.json
 
-  build_image:
-    name: Build Docker Image
+  build_and_scan:
+    name: Build and Scan Docker Image with Trivy
     runs-on: ubuntu-latest
+
     steps:
-      - name: 📥 Checkout Code for Building
+      - name: 📥 Checkout Code
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -67,32 +68,7 @@ jobs:
       - name: 🐳 Build Docker Image
         run: |
           docker build -t myapp:latest .
-          docker save myapp:latest -o myapp.tar
-
-      - name: 💾 Upload Docker Image as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: myapp-image
-          path: myapp.tar
-
-  image_scanning:
-    name: Image Scanning with Trivy
-    runs-on: ubuntu-latest
-    needs: build_image
-    steps:
-      - name: 📥 Checkout Code for Scanning
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: 📦 Download Docker Image Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: myapp-image
-
-      - name: 📤 Load Docker Image
-        run: |
-          docker load -i myapp.tar
+          echo "✅ Docker image 'myapp:latest' built."
 
       - name: 🔍 Scan Docker Image with Trivy
         uses: aquasecurity/trivy-action@master
