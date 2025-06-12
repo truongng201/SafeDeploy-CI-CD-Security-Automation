@@ -12,21 +12,53 @@ on:
 env:
   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
   
 jobs:
-  static_security_analysis:
-    name: SAST - SonarQube Analysis
+  static_application_security_testing:
+    name: SAST - SonarQube Testing
     runs-on: ubuntu-latest
     permissions: read-all
     steps:
-      - name: 📥 Checkout Code for Analysis
+      - name: 📥 Checkout Code for Testing
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
-      - name: 🔍 Run SonarQube Static Analysis
+      - name: 🔍 Run SonarQube Static Testing
         uses: sonarsource/sonarqube-scan-action@master
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
   
+  software_composition_analysis:
+    name: SCA - Snyk Testing
+    runs-on: ubuntu-latest
+    permissions: read-all
+    steps:
+      - name: 📥 Checkout Code for Testing
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: 🛡️ Install Snyk CLI
+        run: npm install -g snyk
+
+      - name: 🔐 Authenticate with Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+
+      - name: 🔍 Run Snyk and output JSON
+        run: snyk test --all-projects --json-file-output=snyk-results.json || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: 💾 Upload Snyk JSON results (for DefectDojo or review)
+        uses: actions/upload-artifact@v3
+        with:
+          name: snyk-json
+          path: snyk-results.json
+
+      - name: 📤 Logging snyk results
+        run: |
+          echo "Snyk results:"
+          cat snyk-results.json
