@@ -9,11 +9,6 @@ on:
       - main
     types: [opened, synchronize, reopened]
 
-env:
-  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-  
 jobs:
   static_application_security_testing:
     name: SAST - SonarQube Testing
@@ -28,8 +23,8 @@ jobs:
       - name: 🔍 Run SonarQube Static Testing
         uses: sonarsource/sonarqube-scan-action@master
         env:
-          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
   
   software_composition_analysis:
     name: SCA - Snyk Testing
@@ -41,16 +36,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 🛡️ Install Snyk CLI
-        run: npm install -g snyk
-
-      - name: 🔐 Authenticate with Snyk
-        run: snyk auth ${{ secrets.SNYK_TOKEN }}
-
-      - name: 🔍 Run Snyk and output JSON
-        run: snyk test --all-projects --json-file-output=snyk-results.json || true
+      - name: 🔍 Run Snyk to check for vulnerabilities
+        uses: snyk/actions/python@master
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --all-projects --json-file-output=snyk-results.json
 
       - name: 💾 Upload Snyk JSON results (for DefectDojo or review)
         uses: actions/upload-artifact@v4
