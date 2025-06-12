@@ -1,0 +1,32 @@
+name: CI/CD & Security Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+env:
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+  
+jobs:
+  static_security_analysis:
+    name: SAST - SonarQube Analysis
+    runs-on: ubuntu-latest
+    permissions: read-all
+    steps:
+      - name: 📥 Checkout Code for Analysis
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Run SonarQube Static Analysis
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+  

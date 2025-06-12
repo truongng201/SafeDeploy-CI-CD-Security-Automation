@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   snyk:
-    image: snyk/snyk:latest
+    image: aquasec/trivy:latest
     container_name: snyk
     working_dir: /app
     volumes:
