@@ -1,0 +1,73 @@
+.DS_Store
+# Ignore node_modules directory
+node_modules/
+# Ignore build output directory
+dist/
+# Ignore log files
+*.log
+# Ignore environment variable files
+.env
+# Ignore coverage reports
+coverage/
+# Ignore temporary files
+*.tmp
+# Ignore IDE specific files
+.idea/
+# Ignore OS generated files
+Thumbs.db
+# Ignore npm debug log
+npm-debug.log*
+# Ignore yarn lock file
+yarn-debug.log*
+# Ignore package lock file
+package-lock.json
+# Ignore lock files for pnpm
+pnpm-lock.yaml
+# Ignore test output directories
+test-output/
+# Ignore specific configuration files
+config.json
+# Ignore backup files
+*.bak
+# Ignore cache directories
+.cache/
+# Ignore specific directories
+logs/
+# Ignore specific file types
+*.swp
+# Ignore specific directories for specific tools
+.vscode/
+
+#Python specific ignores
+__pycache__/
+# Ignore Python bytecode files
+*.pyc
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+# Ignore Python virtual environments
+venv/
+# Ignore Python egg files
+*.egg
+# Ignore Python distribution files
+*.egg-info/
+
+#Java specific ignores
+*.class
+# Ignore Java archive files
+*.jar
+# Ignore Java server pages
+*.jsp
+# Ignore Maven build directories
+target/
+# Ignore Gradle build directories
+build/
+# Ignore IntelliJ IDEA project files
+.idea/
+# Ignore Eclipse project files
+.classpath
+# Ignore Eclipse project metadata
+.project
+# Ignore NetBeans project files
+nbproject/private/
+# Ignore NetBeans cache
+nbbuild/
