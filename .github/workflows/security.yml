@@ -67,8 +67,14 @@ jobs:
       - name: 🐳 Build Docker Image
         run: |
           docker build -t myapp:latest .
-          echo "Docker image built successfully."
-      
+          docker save myapp:latest -o myapp.tar
+
+      - name: 💾 Upload Docker Image as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: myapp-image
+          path: myapp.tar
+
   image_scanning:
     name: Image Scanning with Trivy
     runs-on: ubuntu-latest
@@ -78,6 +84,15 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: 📦 Download Docker Image Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: myapp-image
+
+      - name: 📤 Load Docker Image
+        run: |
+          docker load -i myapp.tar
 
       - name: 🔍 Scan Docker Image with Trivy
         uses: aquasecurity/trivy-action@master
@@ -93,7 +108,7 @@ jobs:
         with:
           name: trivy-json
           path: trivy-results.json
-      
+
       - name: 📤 Logging Trivy results
         run: |
           echo "Trivy results:"
