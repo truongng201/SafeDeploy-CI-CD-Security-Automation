@@ -53,7 +53,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: 💾 Upload Snyk JSON results (for DefectDojo or review)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: snyk-json
           path: snyk-results.json
