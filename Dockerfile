@@ -27,14 +27,6 @@ RUN apk update && \
 ## copy Python dependencies from build image
 COPY --from=compile-image /opt/venv /opt/venv
 
-## SET ARGUMENTS TO ENVIRONMENT VARIABLES
-ARG SERVICE_NAME \
-    APP_VERSION \
-    ENV
-ENV SERVICE_NAME=${SERVICE_NAME}
-ENV APP_VERSION=${APP_VERSION}
-ENV ENV=${ENV}
-
 ## set working directory
 WORKDIR /usr/src/app
 
@@ -51,6 +43,6 @@ USER dev
 COPY . /usr/src/app
 
 ## set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/venv/bin:$PATH"
