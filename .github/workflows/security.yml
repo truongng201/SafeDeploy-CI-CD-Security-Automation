@@ -129,12 +129,12 @@ jobs:
             -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
             -F 'scan_type=SonarQube Scan' \
             -F 'file=@reports/sonarqube-report.json' \
-            -F 'engagement=1' \
+            -F 'engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}' \
             -F 'minimum_severity=Low' \
             -F 'active=true' \
             -F 'verified=true' \
             -F 'scan_date=$(date +%F)' \
-            -F 'product_name=Safedeploy'
+            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}'
 
       - name: 📤 Upload Snyk Report to DefectDojo
         run: |
@@ -142,12 +142,12 @@ jobs:
             -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
             -F 'scan_type=Snyk Scan' \
             -F 'file=@reports/snyk-results.json' \
-            -F 'engagement=1' \
+            -F 'engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}' \
             -F 'minimum_severity=Low' \
             -F 'active=true' \
             -F 'verified=true' \
             -F 'scan_date=$(date +%F)' \
-            -F 'product_name=Safedeploy'
+            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}'
 
       - name: 📤 Upload Trivy Report to DefectDojo
         run: |
@@ -155,9 +155,9 @@ jobs:
             -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
             -F 'scan_type=Container Scan (Trivy)' \
             -F 'file=@reports/trivy-results.json' \
-            -F 'engagement=1' \
+            -F 'engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}' \
             -F 'minimum_severity=Low' \
             -F 'active=true' \
             -F 'verified=true' \
             -F 'scan_date=$(date +%F)' \
-            -F 'product_name=Safedeploy'
+            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}'
