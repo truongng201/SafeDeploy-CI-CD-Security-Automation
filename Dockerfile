@@ -20,9 +20,9 @@ RUN pip install -r requirements.txt
 ## build-image
 FROM python:3.13-alpine AS runtime-image
 
-## install nc
+## install nc and vulnerable package
 RUN apk update && \
-    apk add --no-cache curl
+    apk add --no-cache curl openssl=1.1.1t-r0
 
 ## copy Python dependencies from build image
 COPY --from=compile-image /opt/venv /opt/venv

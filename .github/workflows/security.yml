@@ -128,7 +128,7 @@ jobs:
           scan_date=$(date +%Y-%m-%d)
           curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
             -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
-            -F 'scan_type=SonarQube Scan' \
+            -F 'scan_type=SonarQube API' \
             -F 'file=@reports/sonarqube-report.json' \
             -F 'engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}' \
             -F 'minimum_severity=Low' \
