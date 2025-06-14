@@ -30,7 +30,7 @@ jobs:
         run: |
           mkdir -p reports
           curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
-            "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=${{ secrets.SONAR_PROJECT_KEY }}&resolved=false&types=BUG,VULNERABILITY,CODE_SMELL" \
+            "https://${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=${{ secrets.SONAR_PROJECT_KEY }}&resolved=false&types=BUG,VULNERABILITY,CODE_SMELL" \
             -o reports/sonarqube-report.json
 
       - name: 💾 Upload SonarQube JSON results
