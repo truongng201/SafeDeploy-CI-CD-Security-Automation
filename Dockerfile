@@ -23,8 +23,7 @@ FROM python:3.11-alpine3.17 AS runtime-image
 
 ## install nc and vulnerable package
 RUN apk update && \
-    apk add --no-cache curl openssl=1.1.1t-r0 && \
-    rm -rf /var/cache/apk/*
+    apk add --no-cache curl
 
 ## copy Python dependencies from build image
 COPY --from=compile-image /opt/venv /opt/venv
