@@ -26,12 +26,14 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      - name: 📤 Export SonarQube Issues as JSON
+      - name: 📋 Fetch SonarQube Report
         run: |
-          mkdir -p reports
-          curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
-            "https://${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=${{ secrets.SONAR_PROJECT_KEY }}&resolved=false&types=BUG,VULNERABILITY,CODE_SMELL" \
-            -o reports/sonarqube-report.json
+          curl -u ${{ secrets.SONAR_TOKEN }}: \
+          "${{ secrets.SONAR_HOST_URL }}/api/measures/component?component=${{ secrets.SONAR_PROJECT_KEY }}&metricKeys=bugs,vulnerabilities,code_smells" \
+          -o reports/sonarqube-report.json
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: 💾 Upload SonarQube JSON results
         uses: actions/upload-artifact@v4
