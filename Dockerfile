@@ -1,11 +1,12 @@
 ## base image
-FROM python:3.13-alpine AS compile-image
+FROM python:3.11-alpine3.17 AS compile-image
 
 ## install dependencies
 RUN apk update && \
     apk add --no-cache \
     libpq-dev \
-    gcc
+    gcc && \
+    rm -rf /var/cache/apk/*
 
 ## virtualenv
 ENV VIRTUAL_ENV=/opt/venv
@@ -18,14 +19,23 @@ COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
 ## build-image
-FROM python:3.13-alpine AS runtime-image
+FROM python:3.11-alpine3.17 AS runtime-image
 
 ## install nc and vulnerable package
 RUN apk update && \
-    apk add --no-cache curl openssl=1.1.1t-r0
+    apk add --no-cache curl openssl=1.1.1t-r0 && \
+    rm -rf /var/cache/apk/*
 
 ## copy Python dependencies from build image
 COPY --from=compile-image /opt/venv /opt/venv
+
+## SET ARGUMENTS TO ENVIRONMENT VARIABLES
+ARG SERVICE_NAME \
+    APP_VERSION \
+    ENVIRONMENT
+ENV SERVICE_NAME=${SERVICE_NAME}
+ENV APP_VERSION=${APP_VERSION}
+ENV ENVIRONMENT=${ENVIRONMENT}
 
 ## set working directory
 WORKDIR /usr/src/app
