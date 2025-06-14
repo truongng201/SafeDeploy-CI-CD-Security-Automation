@@ -25,7 +25,20 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-  
+
+      - name: 📤 Export SonarQube Issues as JSON
+        run: |
+          mkdir -p reports
+          curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
+            "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=${{ secrets.SONAR_PROJECT_KEY }}&resolved=false&types=BUG,VULNERABILITY,CODE_SMELL" \
+            -o reports/sonarqube-report.json
+
+      - name: 💾 Upload SonarQube JSON results
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonarqube-json
+          path: reports/sonarqube-report.json
+
   software_composition_analysis:
     name: SCA - Snyk Testing
     runs-on: ubuntu-latest
@@ -44,21 +57,15 @@ jobs:
         with:
           args: --json-file-output=snyk-results.json
 
-      - name: 💾 Upload Snyk JSON results (for DefectDojo or review)
+      - name: 💾 Upload Snyk JSON results
         uses: actions/upload-artifact@v4
         with:
           name: snyk-json
           path: snyk-results.json
 
-      - name: 📤 Logging snyk results
-        run: |
-          echo "Snyk results:"
-          cat snyk-results.json
-
   build_and_scan:
     name: Build and Scan Docker Image with Trivy
     runs-on: ubuntu-latest
-
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v2
@@ -74,21 +81,16 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: myapp:latest
-          format: 'json'
-          output: 'trivy-results.json'
+          format: json
+          output: trivy-results.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 💾 Upload Trivy JSON results (for DefectDojo or review)
+      - name: 💾 Upload Trivy JSON results
         uses: actions/upload-artifact@v4
         with:
           name: trivy-json
           path: trivy-results.json
-
-      - name: 📤 Logging Trivy results
-        run: |
-          echo "Trivy results:"
-          cat trivy-results.json
 
   upload_results:
     name: Upload Results to DefectDojo
@@ -99,3 +101,60 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: 📥 Download SonarQube Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sonarqube-json
+          path: reports/
+
+      - name: 📥 Download Snyk Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: snyk-json
+          path: reports/
+
+      - name: 📥 Download Trivy Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-json
+          path: reports/
+
+      - name: 📤 Upload SonarQube Report to DefectDojo
+        run: |
+          curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
+            -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
+            -F 'scan_type=SonarQube Scan' \
+            -F 'file=@reports/sonarqube-report.json' \
+            -F 'engagement=1' \
+            -F 'minimum_severity=Low' \
+            -F 'active=true' \
+            -F 'verified=true' \
+            -F 'scan_date=$(date +%F)' \
+            -F 'product_name=Safedeploy'
+
+      - name: 📤 Upload Snyk Report to DefectDojo
+        run: |
+          curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
+            -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
+            -F 'scan_type=Snyk Scan' \
+            -F 'file=@reports/snyk-results.json' \
+            -F 'engagement=1' \
+            -F 'minimum_severity=Low' \
+            -F 'active=true' \
+            -F 'verified=true' \
+            -F 'scan_date=$(date +%F)' \
+            -F 'product_name=Safedeploy'
+
+      - name: 📤 Upload Trivy Report to DefectDojo
+        run: |
+          curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
+            -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
+            -F 'scan_type=Container Scan (Trivy)' \
+            -F 'file=@reports/trivy-results.json' \
+            -F 'engagement=1' \
+            -F 'minimum_severity=Low' \
+            -F 'active=true' \
+            -F 'verified=true' \
+            -F 'scan_date=$(date +%F)' \
+            -F 'product_name=Safedeploy'
