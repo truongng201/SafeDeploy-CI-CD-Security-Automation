@@ -16,7 +16,7 @@ jobs:
     permissions: read-all
     steps:
       - name: 📥 Checkout Code for Testing
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4 # Updated to latest version
         with:
           fetch-depth: 0
 
@@ -25,32 +25,39 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-      - name: 📦 Run SonarQube and Export XML
-        run: |
-          sonar-scanner \
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
-            -Dsonar.sources=. \
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+        with:
+          args: >
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.sources=.
             -Dsonar.report.export.path=sonar-report.xml
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+            -Dsonar.working.directory=.scannerwork
+
+      - name: 🛠 Debug Check SonarQube Report
+        run: |
+          echo "Listing files in workspace:"
+          ls -la
+          echo "Checking for sonar-report.xml:"
+          if [ -f sonar-report.xml ]; then
+            echo "✅ sonar-report.xml found"
+          else
+            echo "❌ sonar-report.xml not found"
+            exit 1
+          fi
 
       - name: 💾 Upload SonarQube XML results
         uses: actions/upload-artifact@v4
         with:
           name: sonarqube-xml
           path: sonar-report.xml
-      
+        if: always() # Upload even if previous steps fail for debugging
+
   software_composition_analysis:
     name: SCA - Snyk Testing
     runs-on: ubuntu-latest
     permissions: read-all
     steps:
       - name: 📥 Checkout Code for Testing
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -73,7 +80,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -103,14 +110,14 @@ jobs:
     needs: [static_application_security_testing, software_composition_analysis, build_and_scan]
     steps:
       - name: 📥 Checkout Code for Uploading Results
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: 📥 Download SonarQube Artifact
         uses: actions/download-artifact@v4
         with:
-          name: sonarqube-json
+          name: sonarqube-xml
           path: reports/
 
       - name: 📥 Download Snyk Artifact
@@ -130,33 +137,33 @@ jobs:
           scan_date=$(date +%Y-%m-%d)
           curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
             -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
-            -F 'scan_type=SonarQube Scan \
-            -F 'file=@reports/sonar-report.xml' \
-            -F 'engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}' \
-            -F 'minimum_severity=Low' \
+            -F "scan_type=SonarQube Scan" \
+            -F "file=@reports/sonar-report.xml" \
+            -F "engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}" \
+            -F "minimum_severity=Low" \
             -F "scan_date=${scan_date}" \
-            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}'
+            -F "product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}"
 
       - name: 📤 Upload Snyk Report to DefectDojo
         run: |
           scan_date=$(date +%Y-%m-%d)
           curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
             -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
-            -F 'scan_type=Snyk Scan' \
-            -F 'file=@reports/snyk-results.json' \
-            -F 'engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}' \
-            -F 'minimum_severity=Low' \
+            -F "scan_type=Snyk Scan" \
+            -F "file=@reports/snyk-results.json" \
+            -F "engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}" \
+            -F "minimum_severity=Low" \
             -F "scan_date=${scan_date}" \
-            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}'
+            -F "product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}"
 
       - name: 📤 Upload Trivy Report to DefectDojo
         run: |
           scan_date=$(date +%Y-%m-%d)
           curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
             -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
-            -F 'scan_type=Trivy Scan' \
-            -F 'file=@reports/trivy-results.json' \
-            -F 'engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}' \
-            -F 'minimum_severity=Low' \
+            -F "scan_type=Trivy Scan" \
+            -F "file=@reports/trivy-results.json" \
+            -F "engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}" \
+            -F "minimum_severity=Low" \
             -F "scan_date=${scan_date}" \
-            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}'
+            -F "product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}"
