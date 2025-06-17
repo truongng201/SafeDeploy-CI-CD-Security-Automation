@@ -16,7 +16,7 @@ jobs:
     permissions: read-all
     steps:
       - name: 📥 Checkout Code for Testing
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
@@ -25,40 +25,30 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        with:
-          args: >
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-            -Dsonar.sources=.
-            -Dsonar.language=html
-            -Dsonar.sourceEncoding=UTF-8
 
-      - name: 📋 Generate SonarQube HTML Report
-        uses: soprasteria/sonar-report@master
+      - name: 📋 Fetch SonarQube Report
+        run: |
+          mkdir -p reports
+          curl -u ${{ secrets.SONAR_TOKEN }}: \
+          "${{ secrets.SONAR_HOST_URL }}/api/measures/component?component=${{ secrets.SONAR_PROJECT_KEY }}&metricKeys=bugs,vulnerabilities,code_smells" \
+          -o reports/sonarqube-report.json
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        with:
-          sonar-project-key: ${{ secrets.SONAR_PROJECT_KEY }}
-          output-file: reports/sonarqube-report.html
 
-      - name: 🔍 Inspect SonarQube HTML Report
-        run: |
-          echo "SonarQube HTML Report Contents:"
-          cat reports/sonarqube-report.html
-
-      - name: 💾 Upload SonarQube HTML Report
+      - name: 💾 Upload SonarQube JSON results
         uses: actions/upload-artifact@v4
         with:
-          name: sonarqube-html
-          path: reports/sonarqube-report.html
-
+          name: sonarqube-json
+          path: reports/sonarqube-report.json
+      
   software_composition_analysis:
     name: SCA - Snyk Testing
     runs-on: ubuntu-latest
     permissions: read-all
     steps:
       - name: 📥 Checkout Code for Testing
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
@@ -68,20 +58,20 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --json-file-output=reports/snyk-results.json
+          args: --json-file-output=snyk-results.json
 
       - name: 💾 Upload Snyk JSON results
         uses: actions/upload-artifact@v4
         with:
           name: snyk-json
-          path: reports/snyk-results.json
+          path: snyk-results.json
 
   build_and_scan:
     name: Build and Scan Docker Image with Trivy
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
@@ -95,7 +85,7 @@ jobs:
         with:
           image-ref: myapp:latest
           format: json
-          output: reports/trivy-results.json
+          output: trivy-results.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -103,7 +93,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trivy-json
-          path: reports/trivy-results.json
+          path: trivy-results.json
 
   upload_results:
     name: Upload Results to DefectDojo
@@ -111,14 +101,14 @@ jobs:
     needs: [static_application_security_testing, software_composition_analysis, build_and_scan]
     steps:
       - name: 📥 Checkout Code for Uploading Results
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
       - name: 📥 Download SonarQube Artifact
         uses: actions/download-artifact@v4
         with:
-          name: sonarqube-html
+          name: sonarqube-json
           path: reports/
 
       - name: 📥 Download Snyk Artifact
@@ -136,47 +126,35 @@ jobs:
       - name: 📤 Upload SonarQube Report to DefectDojo
         run: |
           scan_date=$(date +%Y-%m-%d)
-          response=$(curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
+          curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
             -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
-            -F 'scan_type=SonarQube Scan' \
-            -F 'file=@reports/sonarqube-report.html' \
+            -F 'scan_type=SonarQube API Import' \
+            -F 'file=@reports/sonarqube-report.json' \
             -F 'engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}' \
             -F 'minimum_severity=Low' \
             -F "scan_date=${scan_date}" \
-            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}' \
-            -w "%{http_code}" -o defectdojo_sonarqube_response.json)
-          echo "HTTP Status: $response"
-          echo "DefectDojo SonarQube Response:"
-          cat defectdojo_sonarqube_response.json
+            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}'
 
       - name: 📤 Upload Snyk Report to DefectDojo
         run: |
           scan_date=$(date +%Y-%m-%d)
-          response=$(curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
+          curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
             -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
             -F 'scan_type=Snyk Scan' \
             -F 'file=@reports/snyk-results.json' \
             -F 'engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}' \
             -F 'minimum_severity=Low' \
             -F "scan_date=${scan_date}" \
-            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}' \
-            -w "%{http_code}" -o defectdojo_snyk_response.json)
-          echo "HTTP Status: $response"
-          echo "DefectDojo Snyk Response:"
-          cat defectdojo_snyk_response.json
+            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}'
 
       - name: 📤 Upload Trivy Report to DefectDojo
         run: |
           scan_date=$(date +%Y-%m-%d)
-          response=$(curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
+          curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
             -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
             -F 'scan_type=Trivy Scan' \
             -F 'file=@reports/trivy-results.json' \
             -F 'engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}' \
             -F 'minimum_severity=Low' \
             -F "scan_date=${scan_date}" \
-            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}' \
-            -w "%{http_code}" -o defectdojo_trivy_response.json)
-          echo "HTTP Status: $response"
-          echo "DefectDojo Trivy Response:"
-          cat defectdojo_trivy_response.json
+            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}'
