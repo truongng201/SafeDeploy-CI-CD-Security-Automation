@@ -68,6 +68,7 @@ jobs:
           cmd_options: '-x report.xml' # Generate XML report
           issue_title: '' # Disable issue creation by setting empty title
           fail_action: false # Prevent workflow failure if issues can't be created
+          allow_issue_writing: false # Disable issue writing
 
       - name: Upload XML Report
         uses: actions/upload-artifact@v4
