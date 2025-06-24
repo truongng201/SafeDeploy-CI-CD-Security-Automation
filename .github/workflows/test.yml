@@ -48,29 +48,35 @@ jobs:
   dynamic_application_security_testing:
     name: DAST - OWASP ZAP Testing
     needs: [build_and_deploy]
-    permissions: read-all
     runs-on: ubuntu-latest
+    permissions: read-all
     steps:
       - name: 📥 Checkout Code for Testing
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
-      - name: Create Reports Directory
-        run: mkdir -p reports
-
-      - name: 🔍 Run OWASP ZAP Dynamic Testing (with XML Output)
+      - name: 🔍 Run OWASP ZAP Full Scan (safe output)
         uses: zaproxy/action-full-scan@v0.9.0
         with:
-            target: '${{ secrets.SERVER_API }}'
-            cmd_options: '-x zap-report.xml'  # Generates XML report
-        continue-on-error: true  # In case ZAP finds issues, don't fail pipeline
+          target: '${{ secrets.SERVER_API }}'
+          cmd_options: '-x /tmp/zap-report.xml'
+        continue-on-error: true
 
-      - name: 💾 Upload ZAP XML Report as Artifact
+      - name: 📁 Copy ZAP Report to Workspace
+        run: |
+          if [ -f /tmp/zap-report.xml ]; then
+            cp /tmp/zap-report.xml ./zap-report.xml
+          else
+            echo "❌ zap-report.xml not found in /tmp"
+            exit 1
+          fi
+
+      - name: 💾 Upload ZAP XML Report
         uses: actions/upload-artifact@v4
         with:
-            name: zap-xml
-            path: zap-report.xml
+          name: zap-xml
+          path: zap-report.xml
 
   upload_results:
     name: Upload Results to DefectDojo
@@ -85,13 +91,13 @@ jobs:
       - name: 📥 Download ZAP XML Artifact
         uses: actions/download-artifact@v4
         with:
-            name: zap-xml
-            path: reports/
+          name: zap-xml
+          path: reports/
 
       - name: 📤 Upload ZAP Report to DefectDojo
         run: |
-            scan_date=$(date +%Y-%m-%d)
-            curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
+          scan_date=$(date +%Y-%m-%d)
+          curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
             -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
             -F 'scan_type=ZAP Scan' \
             -F 'file=@reports/zap-report.xml' \
