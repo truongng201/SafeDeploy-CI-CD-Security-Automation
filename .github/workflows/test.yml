@@ -1,0 +1,102 @@
+name: CI/CD & Security Test Pipeline
+
+on:
+  push:
+    branches:
+      - test
+  pull_request:
+    branches:
+      - test
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build_and_deploy:
+    name: Build and Deploy Application
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+    
+      - name: Build Docker Image
+        run: |
+          docker build -t safedeploy:latest .
+    
+      - name: Push Docker Image to Docker Hub
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/safedeploy:latest
+     
+      - name: Install SSH key
+        run: |
+          mkdir -p ~/.ssh/
+          cd ~/.ssh/ 
+          touch id_rsa && touch known_hosts && chmod 600 id_rsa
+          echo "${{ secrets.DIGITALOCEAN_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+
+      - name: Add Droplet to known hosts
+        run: ssh-keyscan ${{ secrets.SERVER_IP_ADDRESS}} >> ~/.ssh/known_hosts
+
+      - name: Pull and run Docker images on Droplet
+        run: |
+          ssh ${{ secrets.SERVER_USER}}@${{ secrets.SERVER_IP_ADDRESS}} 'docker service update --force --image ${{ secrets.DOCKERHUB_USERNAME}}/safedeploy:latest services_backend'
+          ssh ${{ secrets.SERVER_USER}}@${{ secrets.SERVER_IP_ADDRESS}} 'docker image prune -a -f'
+
+
+  dynamic_application_security_testing:
+    name: DAST - OWASP ZAP Testing
+    needs: [build_and_deploy]
+    runs-on: ubuntu-latest
+    permissions: read-all
+    steps:
+      - name: 📥 Checkout Code for Testing
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Run OWASP ZAP Dynamic Testing (with XML Output)
+        uses: zaproxy/action-full-scan@v0.9.0
+        with:
+            target: '${{ secrets.SERVER_API }}'
+            cmd_options: '-r zap-report.html -x zap-report.xml'  # `-x` generates XML report
+        continue-on-error: true  # In case ZAP finds issues, don't fail pipeline
+
+      - name: 💾 Upload ZAP XML Report as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+            name: zap-xml
+            path: zap-report.xml
+
+  upload_results:
+    name: Upload Results to DefectDojo
+    runs-on: ubuntu-latest
+    needs: [dynamic_application_security_testing]
+    steps:
+      - name: 📥 Checkout Code for Uploading Results
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Download ZAP XML Artifact
+        uses: actions/download-artifact@v4
+        with:
+            name: zap-xml
+            path: reports/
+
+      - name: 📤 Upload ZAP Report to DefectDojo
+        run: |
+            scan_date=$(date +%Y-%m-%d)
+            curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
+            -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_TOKEN }}" \
+            -F 'scan_type=ZAP Scan' \
+            -F 'file=@reports/zap-report.xml' \
+            -F 'engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}' \
+            -F 'minimum_severity=Low' \
+            -F "scan_date=${scan_date}" \
+            -F 'product_name=${{ secrets.DEFECTDOJO_PRODUCT_NAME }}'
