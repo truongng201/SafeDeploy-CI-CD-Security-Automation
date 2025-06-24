@@ -1,9 +1,6 @@
 name: CI/CD & Security Test Pipeline
 
 on:
-  push:
-    branches:
-      - test
   pull_request:
     branches:
       - test
@@ -53,7 +50,6 @@ jobs:
     name: DAST - OWASP ZAP Testing
     needs: [build_and_deploy]
     runs-on: ubuntu-latest
-    permissions: read-all
     steps:
       - name: 📥 Checkout Code for Testing
         uses: actions/checkout@v2
