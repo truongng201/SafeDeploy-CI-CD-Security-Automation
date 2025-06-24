@@ -1,0 +1,2 @@
+https://api.sec-vdt.duckdns.org/
+https://api.sec-vdt.duckdns.org/login
