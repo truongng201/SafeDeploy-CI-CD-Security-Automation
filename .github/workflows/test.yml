@@ -4,50 +4,53 @@ on:
   push:
     branches:
       - test
+
+env:
+  GITHUB_TOKEN: ''
   
 jobs:
-  build_and_deploy:
-    name: Build and Deploy Application
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
+#   build_and_deploy:
+#     name: Build and Deploy Application
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: 📥 Checkout Code
+#         uses: actions/checkout@v2
+#         with:
+#           fetch-depth: 0
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+#       - name: Login to Docker Hub
+#         uses: docker/login-action@v1
+#         with:
+#           username: ${{ secrets.DOCKERHUB_USERNAME }}
+#           password: ${{ secrets.DOCKERHUB_PASSWORD }}
     
-      - name: Build Docker Image
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/safedeploy:latest -f Dockerfile .
+#       - name: Build Docker Image
+#         run: |
+#           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/safedeploy:latest -f Dockerfile .
     
-      - name: Push Docker Image to Docker Hub
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/safedeploy:latest
+#       - name: Push Docker Image to Docker Hub
+#         run: |
+#           docker push ${{ secrets.DOCKERHUB_USERNAME }}/safedeploy:latest
      
-      - name: Install SSH key
-        run: |
-          mkdir -p ~/.ssh/
-          cd ~/.ssh/ 
-          touch id_rsa && touch known_hosts && chmod 600 id_rsa
-          echo "${{ secrets.DIGITALOCEAN_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+#       - name: Install SSH key
+#         run: |
+#           mkdir -p ~/.ssh/
+#           cd ~/.ssh/ 
+#           touch id_rsa && touch known_hosts && chmod 600 id_rsa
+#           echo "${{ secrets.DIGITALOCEAN_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
 
-      - name: Add Droplet to known hosts
-        run: ssh-keyscan ${{ secrets.SERVER_IP_ADDRESS}} >> ~/.ssh/known_hosts
+#       - name: Add Droplet to known hosts
+#         run: ssh-keyscan ${{ secrets.SERVER_IP_ADDRESS}} >> ~/.ssh/known_hosts
 
-      - name: Pull and run Docker images on Droplet
-        run: |
-          ssh ${{ secrets.SERVER_USER}}@${{ secrets.SERVER_IP_ADDRESS}} 'docker service update --force --image ${{ secrets.DOCKERHUB_USERNAME}}/safedeploy:latest services_backend'
-          ssh ${{ secrets.SERVER_USER}}@${{ secrets.SERVER_IP_ADDRESS}} 'docker image prune -a -f'
+#       - name: Pull and run Docker images on Droplet
+#         run: |
+#           ssh ${{ secrets.SERVER_USER}}@${{ secrets.SERVER_IP_ADDRESS}} 'docker service update --force --image ${{ secrets.DOCKERHUB_USERNAME}}/safedeploy:latest services_backend'
+#           ssh ${{ secrets.SERVER_USER}}@${{ secrets.SERVER_IP_ADDRESS}} 'docker image prune -a -f'
 
 
   dynamic_application_security_testing:
     name: DAST - OWASP ZAP Testing
-    needs: [build_and_deploy]
+    # needs: [build_and_deploy]
     runs-on: ubuntu-latest
     permissions: read-all
     steps:
@@ -57,44 +60,32 @@ jobs:
           fetch-depth: 0
 
       - name: 🔍 Run OWASP ZAP Full Scan (safe output)
-        uses: zaproxy/action-full-scan@v0.9.0
+        uses: zaproxy/action-full-scan@v0.12.0
         with:
-          target: '${{ secrets.SERVER_API }}'
-          cmd_options: '-x /tmp/zap-report.xml'
-        continue-on-error: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          docker_name: 'ghcr.io/zaproxy/zaproxy:stable'
+          target: ${{secrets.SERVER_API}} # Replace with your target URL
+          cmd_options: '-x report.xml' # Generate XML report
 
-      - name: 📁 Copy ZAP Report to Workspace
-        run: |
-          if [ -f /tmp/zap-report.xml ]; then
-            cp /tmp/zap-report.xml ./zap-report.xml
-          else
-            echo "❌ zap-report.xml not found in /tmp"
-            exit 1
-          fi
 
-      - name: 💾 Upload ZAP XML Report
+      - name: Upload XML Report
         uses: actions/upload-artifact@v4
         with:
-          name: zap-xml
-          path: zap-report.xml
+          name: zap-xml # Consistent artifact name for DefectDojo job
+          path: /zap/wrk/zap-report.xml # Match the filename specified in cmd_options
 
   upload_results:
     name: Upload Results to DefectDojo
     runs-on: ubuntu-latest
     needs: [dynamic_application_security_testing]
     steps:
-      - name: 📥 Checkout Code for Uploading Results
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: 📥 Download ZAP XML Artifact
+      - name: Download ZAP XML Artifact
         uses: actions/download-artifact@v4
         with:
-          name: zap-xml
+          name: zap-xml # Match the artifact name from zap_scan job
           path: reports/
 
-      - name: 📤 Upload ZAP Report to DefectDojo
+      - name: Upload ZAP Report to DefectDojo
         run: |
           scan_date=$(date +%Y-%m-%d)
           curl -X POST "${{ secrets.DEFECTDOJO_API_URL }}" \
