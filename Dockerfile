@@ -55,3 +55,5 @@ COPY . /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/venv/bin:$PATH"
+
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "app:app"]

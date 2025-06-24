@@ -59,7 +59,8 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --json-file-output=snyk-results.json
+          command: code test
+          args: --all-projects --json-file-output=snyk-results.json
 
       - name: 💾 Upload Snyk JSON results
         uses: actions/upload-artifact@v4
