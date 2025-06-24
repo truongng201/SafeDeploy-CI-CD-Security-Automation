@@ -4,11 +4,7 @@ on:
   push:
     branches:
       - test
-  pull_request:
-    branches:
-      - test
-    types: [opened, synchronize, reopened]
-
+  
 jobs:
   build_and_deploy:
     name: Build and Deploy Application
@@ -53,7 +49,6 @@ jobs:
     name: DAST - OWASP ZAP Testing
     needs: [build_and_deploy]
     runs-on: ubuntu-latest
-    permissions: read-all
     steps:
       - name: 📥 Checkout Code for Testing
         uses: actions/checkout@v2
