@@ -56,18 +56,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Create Reports Directory
+        run: mkdir -p reports
+
       - name: 🔍 Run OWASP ZAP Dynamic Testing (with XML Output)
-        run: |
-            mkdir -p reports
-            docker run -v $(pwd)/reports:/zap/wrk/:rw -t owasp/zap2docker-stable zap-full-scan.py \
-            -t ${{ secrets.SERVER_API }} -x zap-report.xml
+        uses: zaproxy/action-full-scan@v0.9.0
+        with:
+            target: '${{ secrets.SERVER_API }}'
+            cmd_options: '-x zap-report.xml'  # Generates XML report
         continue-on-error: true  # In case ZAP finds issues, don't fail pipeline
 
       - name: 💾 Upload ZAP XML Report as Artifact
         uses: actions/upload-artifact@v4
         with:
             name: zap-xml
-            path: reports/zap-report.xml
+            path: zap-report.xml
 
   upload_results:
     name: Upload Results to DefectDojo
