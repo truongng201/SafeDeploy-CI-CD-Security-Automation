@@ -16,6 +16,16 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
+    
+def create_admin():
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO users (username, password) VALUES ('admin', 'admin123')")
+        conn.commit()
+    except sqlite3.IntegrityError:
+        pass  # User already exists
+    conn.close()
 
 @app.route('/login')
 def login():
@@ -39,6 +49,9 @@ def index():
     return "Chào mừng đến với ứng dụng Flask!"
 
 init_db()
+create_admin()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)
+    
+    
